@@ -1,0 +1,244 @@
+<html>
+   <head>
+      <title>Box2dWeb example</title>
+   </head>
+   <body onload="init();" style="background: #ffa;">
+   <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
+   <canvas id="canvas" width="360" height="640" style="border: 1px solid #999; display: block; margin: 0 auto;"></canvas>
+   <img src="bg.png" style="display: none;" id="bg" />
+   <img src="rage.png" style="display: none;" id="rage" />
+   <img src="peka-big.png" style="display: none;" id="peka" />
+   <script type="text/javascript" src="Box2dWeb-2.1.a.3.min.js"></script>
+   <script type="text/javascript">
+       var world;
+       var toDestroy = [];
+       var yobas = [];
+       var angryYobas = [];
+        var fail = false;
+
+       var
+               b2Vec2 = Box2D.Common.Math.b2Vec2,
+               b2BodyDef = Box2D.Dynamics.b2BodyDef,
+               b2Body = Box2D.Dynamics.b2Body,
+               b2FixtureDef = Box2D.Dynamics.b2FixtureDef,
+               b2Fixture = Box2D.Dynamics.b2Fixture,
+               b2World = Box2D.Dynamics.b2World,
+               b2MassData = Box2D.Collision.Shapes.b2MassData,
+               b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape,
+               b2CircleShape = Box2D.Collision.Shapes.b2CircleShape,
+               b2DebugDraw = Box2D.Dynamics.b2DebugDraw,
+               b2ContactListener = Box2D.Dynamics.b2ContactListener;
+
+       function init() {
+
+           world = new b2World(new b2Vec2(0, 5),  true);
+
+           var fixDef = new b2FixtureDef;
+           fixDef.density = 1.0;
+           fixDef.friction = 0.5;
+           fixDef.restitution = 0.2;
+
+           var bodyDef = new b2BodyDef;
+
+           //create ground
+           bodyDef.type = b2Body.b2_staticBody;
+           bodyDef.position.x = 9;
+           bodyDef.position.y = 20;
+           fixDef.shape = new b2PolygonShape;
+           fixDef.shape.SetAsBox(10, 2);
+           var body = world.CreateBody(bodyDef);
+           body.SetUserData("G");
+           body.CreateFixture(fixDef);
+           bodyDef.position.y = -4;
+           body = world.CreateBody(bodyDef);
+           body.SetUserData("C");
+           body.CreateFixture(fixDef);
+           var listener = new b2ContactListener;
+
+           listener.BeginContact = function(contact)
+           {
+               var body1 = contact.GetFixtureA().GetBody();
+               var body2 = contact.GetFixtureB().GetBody();
+               var ball;
+               var anotherBody;
+               if (body1.GetUserData() == "B") {
+                   ball = body1;
+                   anotherBody = body2;
+               } else if (body2.GetUserData() == "B") {
+                   ball = body2;
+                   anotherBody = body1;
+               } else {
+                   if (body1.GetUserData() == "T") {
+                       ball = body1;
+                       anotherBody = body2;
+                   } else if (body2.GetUserData() == "T") {
+                       ball = body2;
+                       anotherBody = body1;
+                   }
+                   if (anotherBody.GetUserData() == "G")
+                   {
+                       //alert("sas");
+                       fail = true;
+                   } else {
+                       return;
+                   }
+               }
+               if (anotherBody.GetUserData() == "T")
+               {
+                   toDestroy.push(ball);
+                   yobas.splice(yobas.indexOf(ball), 1);
+                   toDestroy.push(anotherBody);
+                   angryYobas.splice(angryYobas.indexOf(anotherBody), 1);
+               }
+               if (anotherBody.GetUserData() == "C")
+               {
+                   toDestroy.push(ball);
+                   yobas.splice(yobas.indexOf(ball), 1);
+               }
+
+           };
+
+           world.SetContactListener(listener);
+
+           bodyDef.position.y = 0;
+
+           //create some objects
+
+           //setup debug draw
+           var debugDraw = new b2DebugDraw();
+           debugDraw.SetSprite(document.getElementById("canvas").getContext("2d"));
+           debugDraw.SetDrawScale(30.0);
+           debugDraw.SetFillAlpha(0.3);
+           debugDraw.SetLineThickness(1.0);
+           debugDraw.SetFlags(b2DebugDraw.e_shapeBit | b2DebugDraw.e_jointBit);
+           debugDraw.SetDrawScale(32);
+           world.SetDebugDraw(debugDraw);
+
+           window.setInterval(update, 1000 / 60);
+           window.setInterval(spawnAngryYoba, 300);
+       };
+
+       function update() {
+           var ctx = document.getElementById("canvas").getContext("2d");
+           if (fail) {
+               ctx.fillStyle = "#000";
+               ctx.font = "36pt sans-serif";
+               ctx.fillText("OMG SO EZ", 50, 50);
+           } else {
+
+               world.Step(
+                       1 / 60   //frame-rate
+                       ,  10        //velocity iterations
+                       ,  10       //position iterations
+               );
+
+               for (var i in toDestroy) {
+                   world.DestroyBody(toDestroy[i]);
+               }
+
+
+               ctx.fillStyle = "#fff";
+           ctx.drawImage(document.getElementById("bg"), 0, 0, document.getElementById("canvas").width, document.getElementById("canvas").height);
+           ctx.fillStyle = "#ff0";
+
+           for (i = 0; i < yobas.length; i++) {
+               console.log()
+               ctx.save();
+               ctx.translate(yobas[i].GetPosition().x * 32, yobas[i].GetPosition().y * 32);
+               ctx.rotate(yobas[i].GetAngle());
+               ctx.translate(-0.5 * 32, -0.5*32);
+               ctx.drawImage(document.getElementById("peka"), 0, 0, 32, 32);
+               ctx.restore();
+           }
+           ctx.fillStyle = "#f00";
+           for (i = 0; i < angryYobas.length; i++) {
+               console.log()
+               ctx.save();
+               ctx.translate(angryYobas[i].GetPosition().x * 32, angryYobas[i].GetPosition().y * 32);
+               ctx.rotate(angryYobas[i].GetAngle());
+               ctx.translate(-0.5 * 32, -0.5*32);
+               ctx.drawImage(document.getElementById("rage"), 0, 0, 32, 32);
+               ctx.restore();
+           }
+
+           ctx.fillStyle = "#ffde39";
+           ctx.fillRect(0, 18*32, document.getElementById("canvas").width, 2*32);
+           }
+           //world.DrawDebugData();
+           //world.ClearForces();
+           //ctx.beginPath();
+           //ctx.
+       };
+
+       function spawnAngryYoba() {
+           var fixDef = new b2FixtureDef;
+           fixDef.density = 1.0;
+           fixDef.friction = 0.5;
+           fixDef.restitution = 0.2;
+
+           /*var bodyDef = new b2BodyDef;
+            bodyDef.type = b2Body.b2_dynamicBody;
+            fixDef.shape = new b2PolygonShape;
+            fixDef.shape.SetAsArray([new b2Vec2(1 + 1.6 * Math.random(), 0), new b2Vec2(0, (1.86 + 1.6 * Math.random())), new b2Vec2(-1 - 1.6 * Math.random(), 0)], 3);*/
+           var bodyDef = new b2BodyDef;
+           bodyDef.type = b2Body.b2_dynamicBody;
+           fixDef.shape = new b2CircleShape(0.5);
+           bodyDef.position.x = 0.5 + Math.random() * 10.25;
+           bodyDef.position.y = -2;
+           var body = world.CreateBody(bodyDef);
+           body.CreateFixture(fixDef);
+           body.SetAngularVelocity((Math.random() > 0.5 ? 1 : -1) * 2);
+           body.SetLinearVelocity(new b2Vec2(0, 20));
+           body.SetBullet(true);
+           body.SetUserData("T");
+           angryYobas.push(body);
+       }
+
+       if ('ontouchstart' in document.documentElement) {
+        document.getElementById("canvas").addEventListener('touchstart', function(e) {e.preventDefault(); click(e.touches[0]);});
+       } else {
+       document.getElementById("canvas").addEventListener('mousedown', click);
+       }
+
+       function click(e) {
+           var x;
+           var y;
+           if (e.pageX || e.pageY) {
+               x = e.pageX;
+               y = e.pageY;
+           }
+           else {
+               x = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft;
+               y = e.clientY + document.body.scrollTop + document.documentElement.scrollTop;
+           }
+           x -= document.getElementById("canvas").offsetLeft;
+           y -= document.getElementById("canvas").offsetTop;
+
+           //if (y / 32.0 > 18) {
+
+           var fixDef = new b2FixtureDef;
+           fixDef.density = 5.0;
+           fixDef.friction = 0.5;
+           fixDef.restitution = 0.2;
+
+           var bodyDef = new b2BodyDef;
+           bodyDef.type = b2Body.b2_dynamicBody;
+           fixDef.shape = new b2CircleShape(0.5);
+           bodyDef.position.x = x / 32.0;
+           bodyDef.position.y = 19;
+           var body = world.CreateBody(bodyDef);
+           body.CreateFixture(fixDef);
+           body.SetLinearVelocity(new b2Vec2(0, -25));
+           body.SetAngle(2 * Math.PI * Math.random());
+           body.SetAngularVelocity(Math.PI);
+           body.SetBullet(true);
+           body.SetUserData("B");
+
+           yobas.push(body);
+           console.log("heh");
+           //}
+       }
+
+   </script>
+   </body>
+</html>
